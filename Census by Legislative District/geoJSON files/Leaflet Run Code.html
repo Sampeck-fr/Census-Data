@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hawaii Maps</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        
+        .map-container {
+            margin-bottom: 30px;
+        }
+        
+        .map {
+            height: 500px;
+            width: 100%;
+            border: 2px solid #333;
+        }
+        
+        h2 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Hawaii District Maps</h1>
+
+<!-- Map 1 -->
+<div class="map-container">
+    <h2>County Council Districts</h2>
+    <div id="map1" class="map"></div>
+</div>
+
+<!-- Map 2 -->
+<div class="map-container">
+    <h2>Map 2 Title</h2>
+    <div id="map2" class="map"></div>
+</div>
+
+<!-- Map 3 -->
+<div class="map-container">
+    <h2>Map 3 Title</h2>
+    <div id="map3" class="map"></div>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    // ============ CONFIGURATION - EDIT THESE ============
+    
+    // Field name to check for null/not null (change this to your actual field name)
+    const FIELD_TO_CHECK = 'candidate_name';  // CHANGE THIS
+    
+    // GeoJSON file paths (update with your actual filenames)
+    const MAP1_LAYERS = [
+        'layer1.geojson',  // CHANGE THESE
+        'layer2.geojson',
+        'layer3.geojson',
+        'layer4.geojson'
+    ];
+    
+    const MAP2_LAYER = 'layer5.geojson';  // CHANGE THIS
+    const MAP3_LAYER = 'layer6.geojson';  // CHANGE THIS
+    
+    // ============ STYLING FUNCTION ============
+    
+    function styleFeature(feature) {
+        // Check if field is null or empty
+        const fieldValue = feature.properties[FIELD_TO_CHECK];
+        const isNull = !fieldValue || fieldValue === '' || fieldValue === null;
+        
+        return {
+            fillColor: isNull ? 'red' : 'green',
+            fillOpacity: 0.6,
+            color: '#333',        // Border color
+            weight: 2,            // Border width
+            opacity: 1
+        };
+    }
+    
+    // ============ POPUP FUNCTION ============
+    
+    function onEachFeature(feature, layer) {
+        if (feature.properties) {
+            // Build popup content from all properties
+            let popupContent = '<div style="max-width: 200px;">';
+            
+            // Loop through all properties and display them
+            for (let key in feature.properties) {
+                let value = feature.properties[key];
+                if (value !== null && value !== '') {
+                    popupContent += `<b>${key}:</b> ${value}<br>`;
+                }
+            }
+            
+            popupContent += '</div>';
+            layer.bindPopup(popupContent);
+        }
+    }
+    
+    // ============ INITIALIZE MAPS ============
+    
+    // Hawaii center coordinates
+    const hawaiiCenter = [20.7984, -156.3319];
+    const defaultZoom = 8;
+    
+    // Satellite basemap URL
+    const satelliteLayer = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+    const satelliteAttribution = 'Tiles &copy; Esri';
+    
+    // Create Map 1
+    const map1 = L.map('map1').setView(hawaiiCenter, defaultZoom);
+    L.tileLayer(satelliteLayer, { attribution: satelliteAttribution, maxZoom: 18 }).addTo(map1);
+    
+    // Create Map 2
+    const map2 = L.map('map2').setView(hawaiiCenter, defaultZoom);
+    L.tileLayer(satelliteLayer, { attribution: satelliteAttribution, maxZoom: 18 }).addTo(map2);
+    
+    // Create Map 3
+    const map3 = L.map('map3').setView(hawaiiCenter, defaultZoom);
+    L.tileLayer(satelliteLayer, { attribution: satelliteAttribution, maxZoom: 18 }).addTo(map3);
+    
+    // ============ LOAD DATA ============
+    
+    // Load multiple layers for Map 1
+    MAP1_LAYERS.forEach(layerPath => {
+        fetch(layerPath)
+            .then(response => response.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: styleFeature,
+                    onEachFeature: onEachFeature
+                }).addTo(map1);
+            })
+            .catch(error => console.error('Error loading ' + layerPath + ':', error));
+    });
+    
+    // Load layer for Map 2
+    fetch(MAP2_LAYER)
+        .then(response => response.json())
+        .then(data => {
+            L.geoJSON(data, {
+                style: styleFeature,
+                onEachFeature: onEachFeature
+            }).addTo(map2);
+        })
+        .catch(error => console.error('Error loading Map 2 layer:', error));
+    
+    // Load layer for Map 3
+    fetch(MAP3_LAYER)
+        .then(response => response.json())
+        .then(data => {
+            L.geoJSON(data, {
+                style: styleFeature,
+                onEachFeature: onEachFeature
+            }).addTo(map3);
+        })
+        .catch(error => console.error('Error loading Map 3 layer:', error));
+    
+</script>
+
+</body>
+</html>

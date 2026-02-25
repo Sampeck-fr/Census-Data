@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hawaii Legislative Districts — Census Data</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg:        #0f1117;
+      --panel:     #181c27;
+      --border:    #2a2f3f;
+      --accent:    #e8b84b;
+      --text:      #d4d8e8;
+      --muted:     #5a6078;
+      --teal-lo:   rgba(32, 178, 170, 0.15);
+      --teal-hi:   rgba(32, 178, 170, 0.85);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ── SIDEBAR ── */
+    #sidebar {
+      width: 280px;
+      min-width: 280px;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 1000;
+      overflow-y: auto;
+    }
+
+    #sidebar-header {
+      padding: 24px 20px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #sidebar-header h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.35rem;
+      font-weight: 600;
+      color: #fff;
+      line-height: 1.3;
+      letter-spacing: 0.02em;
+    }
+
+    #sidebar-header p {
+      font-size: 0.62rem;
+      color: var(--muted);
+      margin-top: 6px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .section {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-label {
+      font-size: 0.58rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    /* ── CHAMBER TOGGLE ── */
+    #chamber-toggle {
+      display: flex;
+      background: var(--bg);
+      border-radius: 6px;
+      padding: 3px;
+      gap: 3px;
+    }
+
+    .chamber-btn {
+      flex: 1;
+      padding: 8px 0;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s;
+      text-transform: uppercase;
+    }
+
+    .chamber-btn.active {
+      background: var(--accent);
+      color: #0f1117;
+      font-weight: 500;
+    }
+
+    /* ── CHARACTERISTIC RADIOS ── */
+    .char-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .char-option:last-child { border-bottom: none; }
+
+    .char-option input[type="radio"] {
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      min-width: 14px;
+      border: 1.5px solid var(--muted);
+      border-radius: 50%;
+      margin-top: 2px;
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+    }
+
+    .char-option input[type="radio"]:checked {
+      border-color: var(--accent);
+      background: var(--accent);
+      box-shadow: 0 0 0 3px rgba(232, 184, 75, 0.15);
+    }
+
+    .char-option label {
+      font-size: 0.68rem;
+      line-height: 1.5;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .char-option label span {
+      display: block;
+      font-size: 0.58rem;
+      color: var(--muted);
+      margin-top: 1px;
+    }
+
+    /* ── LEGEND ── */
+    #legend {
+      padding: 18px 20px;
+      margin-top: auto;
+      border-top: 1px solid var(--border);
+    }
+
+    .legend-bar {
+      height: 8px;
+      border-radius: 4px;
+      background: linear-gradient(to right, rgba(32,178,170,0.1), rgba(32,178,170,0.9));
+      margin: 10px 0 6px;
+    }
+
+    .legend-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.58rem;
+      color: var(--muted);
+    }
+
+    #legend-title {
+      font-size: 0.6rem;
+      color: var(--text);
+      letter-spacing: 0.06em;
+    }
+
+    /* ── MAP ── */
+    #map {
+      flex: 1;
+      height: 100vh;
+    }
+
+    /* ── TOOLTIP ── */
+    .district-tooltip {
+      background: rgba(15,17,23,0.95);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--text);
+      min-width: 180px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    .district-tooltip .tt-district {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1rem;
+      color: #fff;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+    }
+
+    .district-tooltip .tt-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 2px 0;
+      color: var(--muted);
+      font-size: 0.6rem;
+    }
+
+    .district-tooltip .tt-row.active {
+      color: var(--accent);
+    }
+
+    .district-tooltip .tt-val {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    /* Leaflet overrides */
+    .leaflet-control-zoom a {
+      background: var(--panel) !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
+    }
+
+    .leaflet-control-zoom a:hover {
+      background: var(--border) !important;
+    }
+
+    .leaflet-bar { border: 1px solid var(--border) !important; }
+
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div id="sidebar-header">
+    <h1>Hawaii Legislative Districts</h1>
+    <p>2024 ACS — Census Data Explorer</p>
+  </div>
+
+  <!-- Chamber toggle -->
+  <div class="section">
+    <div class="section-label">Chamber</div>
+    <div id="chamber-toggle">
+      <button class="chamber-btn active" data-chamber="house">House</button>
+      <button class="chamber-btn" data-chamber="senate">Senate</button>
+    </div>
+  </div>
+
+  <!-- Characteristic selector -->
+  <div class="section">
+    <div class="section-label">Characteristic</div>
+    <div id="char-list"></div>
+  </div>
+
+  <!-- Legend -->
+  <div id="legend">
+    <div id="legend-title">—</div>
+    <div class="legend-bar"></div>
+    <div class="legend-labels">
+      <span>0%</span>
+      <span id="legend-max">—</span>
+    </div>
+  </div>
+</div>
+
+<!-- Map -->
+<div id="map"></div>
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+
+const GEOJSON = {
+  house:  'output/house_joined.geojson',
+  senate: 'output/senate_joined.geojson',
+};
+
+// Truncated field names → human-readable labels
+// Update these to match whatever sanitize_field_name produced for your data
+const CHARACTERISTICS = [
+  { field: 'Without_a_', label: 'Without a Computer',                        short: 'No Computer' },
+  { field: 'Income_in_', label: 'Income Below Poverty Level',                short: 'Below Poverty' },
+  { field: 'Education_', label: 'Education Below Bachelor\'s Degree',        short: 'Below Bachelor\'s' },
+  { field: 'Public_hea', label: 'Public Health Insurance Alone',             short: 'Public Health Ins.' },
+  { field: 'Median_inc', label: 'Median Income ($)',                         short: 'Median Income' },
+  { field: 'Households', label: 'Households Receiving SNAP',                 short: 'SNAP' },
+  { field: '2024_Prima', label: '2024 Primary Turnout (Registered Voters)',  short: 'Turnout (Reg.)' },
+  { field: '2024_Prim1', label: '2024 Primary Turnout (Eligible Voters)',    short: 'Turnout (Elig.)' },
+  { field: 'Diff_of_El', label: 'Diff. of Eligible and Registered Turnout', short: 'Turnout Gap' },
+  { field: 'Political_', label: 'Political Career Length of Incumbent',      short: 'Incumbent Tenure' },
+];
+
+const DISTRICT_LABEL = {
+  house:  'SLDLST',
+  senate: 'SLDUST',
+};
+
+// ── MAP INIT ────────────────────────────────────────────────────────────────
+
+const map = L.map('map', {
+  center: [20.5, -157.5],
+  zoom: 7,
+  zoomControl: true,
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap &copy; CARTO',
+  subdomains: 'abcd',
+  maxZoom: 19,
+}).addTo(map);
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+
+let currentChamber  = 'house';
+let currentField    = CHARACTERISTICS[0].field;
+let activeLayer     = null;
+let geoData         = { house: null, senate: null };
+
+// ── CHOROPLETH HELPERS ───────────────────────────────────────────────────────
+
+function getValues(data, field) {
+  return data.features
+    .map(f => parseFloat(f.properties[field]))
+    .filter(v => !isNaN(v));
+}
+
+function getColor(value, min, max) {
+  if (isNaN(value)) return 'rgba(40,44,58,0.6)';
+  const t = Math.max(0, Math.min(1, (value - min) / (max - min || 1)));
+  return `rgba(32, 178, 170, ${0.08 + t * 0.82})`;
+}
+
+function styleFeature(feature, field, min, max) {
+  const val = parseFloat(feature.properties[field]);
+  return {
+    fillColor:   getColor(val, min, max),
+    fillOpacity: 1,
+    color:       '#2a2f3f',
+    weight:      0.8,
+    opacity:     1,
+  };
+}
+
+// ── TOOLTIP ──────────────────────────────────────────────────────────────────
+
+// Fields that aren't percentages
+const NO_PERCENT = ['Median_inc', 'Political_'];
+
+function formatVal(field, val) {
+  if (val === undefined || val === null || val === '') return 'N/A';
+  if (NO_PERCENT.includes(field)) return parseFloat(val).toLocaleString();
+  return `${parseFloat(val).toFixed(1)}%`;
+}
+
+function buildTooltip(props, activeField, chamber) {
+  const distNum = props[DISTRICT_LABEL[chamber]] || '—';
+  const chamberLabel = chamber === 'house' ? 'House District' : 'Senate District';
+
+  let rows = CHARACTERISTICS.map(c => {
+    const val = props[c.field];
+    const display = val !== undefined && val !== null && val !== '' ? formatVal(c.field, val) : 'N/A';
+    const isActive = c.field === activeField;
+    return `<div class="tt-row ${isActive ? 'active' : ''}">
+      <span>${c.short}</span>
+      <span class="tt-val">${display}</span>
+    </div>`;
+  }).join('');
+
+  return `<div class="district-tooltip">
+    <div class="tt-district">${chamberLabel} ${parseInt(distNum)}</div>
+    ${rows}
+  </div>`;
+}
+
+// ── LAYER BUILDER ────────────────────────────────────────────────────────────
+
+function buildLayer(data, field, chamber) {
+  const vals = getValues(data, field);
+  const min  = Math.min(...vals);
+  const max  = Math.max(...vals);
+
+  return L.geoJSON(data, {
+    style: f => styleFeature(f, field, min, max),
+    onEachFeature: (feature, layer) => {
+      layer.on({
+        mouseover(e) {
+          e.target.setStyle({ color: '#e8b84b', weight: 1.8 });
+          layer.bindTooltip(buildTooltip(feature.properties, field, chamber), {
+            sticky: true,
+            className: 'leaflet-tooltip-own',
+            offset: [12, 0],
+          }).openTooltip();
+        },
+        mouseout(e) {
+          e.target.setStyle({ color: '#2a2f3f', weight: 0.8 });
+          layer.closeTooltip();
+        },
+      });
+    },
+  });
+}
+
+// ── RENDER CHOROPLETH ────────────────────────────────────────────────────────
+
+function renderChoropleth(field) {
+  if (activeLayer) map.removeLayer(activeLayer);
+
+  const data = geoData[currentChamber];
+  if (!data) return;
+
+  activeLayer = buildLayer(data, field, currentChamber);
+  activeLayer.addTo(map);
+
+  // Update legend
+  const vals = getValues(data, field);
+  const max  = Math.max(...vals);
+  const meta = CHARACTERISTICS.find(c => c.field === field);
+  document.getElementById('legend-title').textContent = meta ? meta.label : field;
+  document.getElementById('legend-max').textContent   = `${max.toFixed(1)}%`;
+}
+
+// ── UI BUILDERS ──────────────────────────────────────────────────────────────
+
+function buildCharList() {
+  const container = document.getElementById('char-list');
+  container.innerHTML = '';
+
+  CHARACTERISTICS.forEach((c, i) => {
+    const id  = `char-${i}`;
+    const div = document.createElement('div');
+    div.className = 'char-option';
+    div.innerHTML = `
+      <input type="radio" name="characteristic" id="${id}" value="${c.field}" ${c.field === currentField ? 'checked' : ''} />
+      <label for="${id}">${c.label}<span>${c.field}</span></label>
+    `;
+    div.querySelector('input').addEventListener('change', e => {
+      currentField = e.target.value;
+      renderChoropleth(currentField);
+    });
+    container.appendChild(div);
+  });
+}
+
+// ── DATA LOADING ─────────────────────────────────────────────────────────────
+
+async function loadChamber(chamber) {
+  if (geoData[chamber]) return; // already loaded
+  try {
+    const res  = await fetch(GEOJSON[chamber]);
+    geoData[chamber] = await res.json();
+  } catch (e) {
+    console.error(`Failed to load ${chamber} GeoJSON:`, e);
+    alert(`Could not load ${chamber} GeoJSON.\nMake sure you're running a local server (python -m http.server) from the project directory.`);
+  }
+}
+
+// ── CHAMBER SWITCH ────────────────────────────────────────────────────────────
+
+document.querySelectorAll('.chamber-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    if (btn.dataset.chamber === currentChamber) return;
+
+    currentChamber = btn.dataset.chamber;
+
+    document.querySelectorAll('.chamber-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    await loadChamber(currentChamber);
+    renderChoropleth(currentField);
+  });
+});
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+
+(async () => {
+  buildCharList();
+  await loadChamber('house');
+  renderChoropleth(currentField);
+})();
+</script>
+</body>
+</html>
